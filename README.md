@@ -1,6 +1,6 @@
 # Customer Support Resolution Agent
 
-A customer-support agent built with the **Claude Agent SDK**. It resolves common support requests — order lookups, customer lookups, and refunds — autonomously, and escalates to a human when a request falls outside what it's allowed to handle.
+A customer-support agent built with the **Claude Agent SDK**. It resolves common support requests like order lookups, customer lookups, and refunds — autonomously, and escalates to a human when a request falls outside what it's allowed to handle.
 
 I built this while preparing for the **Claude Certified Architect – Foundations** certification, as a hands-on way to internalize the SDK's core patterns: the agentic loop, tool design, structured error handling, and deterministic policy enforcement via hooks.
 

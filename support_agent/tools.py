@@ -1,13 +1,13 @@
 """MCP tool definitions for the support agent.
 
-Each tool is a thin wrapper: validate nothing here, call the mock backend,
-and translate ToolError -> structured error content, or a plain dict ->
-success content. The mock data and business rules live in backend.py.
+Keep each tool as a thin wrapper. The tool calls the mock backend, catches a
+ToolError, and converts the result into the response shape expected by the SDK.
+The mock data and business rules stay in backend.py.
 
-`get_customer` and `lookup_order` are deliberately similar in shape (both
-are "look up X by id" reads that return nested profile/order data), so their
-descriptions are written to explicitly rule each other out and steer the
-model toward the right one.
+`get_customer` and `lookup_order` have similar schemas because they both look
+up records by id. Their descriptions are intentionally specific so the model
+chooses the customer tool for customer profiles and the order tool for order
+details.
 """
 
 from __future__ import annotations
@@ -139,7 +139,7 @@ support_server = create_sdk_mcp_server(
     tools=[get_customer, lookup_order, process_refund, escalate_to_human],
 )
 
-# Fully-qualified names, for allowed_tools / hook matchers.
+# Fully qualified tool names used by allowed_tools and hook matchers.
 ALL_TOOL_NAMES = [
     "mcp__support__get_customer",
     "mcp__support__lookup_order",

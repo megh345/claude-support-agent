@@ -1,9 +1,9 @@
-"""Entry point for the customer support agent.
+"""Main entry point for the customer support agent.
 
-Wires the MCP tool server (tools.py) and the hooks (hooks.py) into
-ClaudeAgentOptions, and exposes a small `run()` helper that yields raw SDK
-messages for one prompt. test_harness.py builds on `run()` to drive scenarios
-and report the tool-call sequence.
+Connect the MCP tool server from tools.py and the hooks from hooks.py to
+ClaudeAgentOptions. The `run()` helper sends one prompt to the agent and yields
+the raw SDK messages. test_harness.py uses this helper to run scenarios and
+print the tool-call sequence.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ def build_options() -> ClaudeAgentOptions:
 
 
 async def run(prompt: str) -> AsyncIterator[Message]:
-    """Run a single prompt through the agent, yielding raw SDK messages."""
+    """Run one prompt through the agent and yield each SDK message."""
 
     options = build_options()
     async for message in query(prompt=prompt, options=options):
@@ -50,7 +50,7 @@ async def run(prompt: str) -> AsyncIterator[Message]:
 
 
 async def _main() -> None:
-    """Small smoke test: run one hardcoded prompt and print what happens."""
+    """Run a small smoke test with one hardcoded prompt."""
 
     async for message in run("What's the status of order ORD-1001?"):
         if isinstance(message, AssistantMessage):

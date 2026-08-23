@@ -1,17 +1,18 @@
-"""Mock backend: fake customer/order data and the "business logic" that the
-MCP tools in tools.py wrap. Kept separate from tools.py so the tool layer
-(schemas, descriptions, MCP plumbing) doesn't get tangled up with fake data.
+"""Mock backend for customer data, order data, and business logic.
 
-Magic IDs used to deliberately trigger each error category (see errors.py):
+Keep this separate from tools.py so the MCP tool layer only handles schemas,
+descriptions, and SDK integration. This file owns the fake data and the rules
+that decide whether an operation succeeds or raises a ToolError.
+
+Test IDs used to trigger each error category from errors.py:
 
     customer_id "CUST-404"   -> validation  (customer not found)
-    customer_id "CUST-LOCKED"-> permission   (account frozen, needs elevated access)
+    customer_id "CUST-LOCKED"-> permission  (account frozen, needs elevated access)
     order_id    "ORD-404"    -> validation  (order not found)
     order_id    "ORD-TIMEOUT"-> transient   (simulated backend timeout)
     refund on   "ORD-1002"   -> business    (already refunded)
     refund on   "ORD-1005" for amount > REFUND_APPROVAL_LIMIT -> business
-        (owned by a non-VIP customer; exceeds what an agent can approve
-        without escalation)
+        (owned by a non-VIP customer and above the agent approval limit)
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from .errors import ToolError
 
 REFUND_APPROVAL_LIMIT = 250.00
 
-# --- Fake data -------------------------------------------------------------
+# --- Mock data -------------------------------------------------------------
 
 _CUSTOMERS: dict[str, dict[str, Any]] = {
     "CUST-1001": {
@@ -99,7 +100,7 @@ _escalations: list[dict[str, Any]] = []
 
 
 # --- Backend operations ------------------------------------------------
-# Each returns either a plain dict (success payload) or raises ToolError.
+# Each function returns a success payload or raises ToolError.
 
 
 def get_customer(customer_id: str) -> dict[str, Any]:

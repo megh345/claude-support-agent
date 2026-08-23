@@ -1,12 +1,16 @@
 """Hook registration for the support agent.
 
-PreToolUse hooks run before a tool executes and can deny the call or rewrite
-its input. PostToolUse hooks run after and can log the result or inject
-context that steers the model's next turn. Returning `{}` leaves the
-operation unchanged; returning `hookSpecificOutput` acts on it.
+Use PreToolUse hooks to inspect a tool call before it runs. These hooks can
+deny the call or update the input. Use PostToolUse hooks after a tool returns
+so that I can log the result or add context for the model's next step.
 
-Signature: async def hook(input_data: dict, tool_use_id: str | None, context) -> dict
-`input_data` always carries hook_event_name, tool_name, tool_input, session_id, cwd.
+Returning `{}` means the hook does not change anything. Returning
+`hookSpecificOutput` tells the SDK to apply the hook result.
+
+Hook signature:
+async def hook(input_data: dict, tool_use_id: str | None, context) -> dict
+
+`input_data` includes hook_event_name, tool_name, tool_input, session_id, and cwd.
 """
 
 from __future__ import annotations
@@ -26,12 +30,11 @@ ALL_SUPPORT_TOOLS_MATCHER = "^mcp__support__"
 async def enforce_refund_policy(
     input_data: dict[str, Any], tool_use_id: str | None, context: Any
 ) -> dict[str, Any]:
-    """Deny refunds over the approval limit before they reach the backend.
+    """Deny refunds above the agent approval limit before backend execution.
 
-    Mirrors the limit check in backend.process_refund, but catching it here
-    means the model gets a policy-shaped denial instead of spending a tool
-    call to find out. process_refund still enforces its own limit as a
-    backstop for any call that reaches it another way.
+    This matches the limit check in backend.process_refund. Keep the backend
+    check as the final protection, but this hook gives the model a clear policy
+    denial earlier in the flow.
     """
 
     tool_input = input_data.get("tool_input", {})
@@ -57,7 +60,7 @@ async def enforce_refund_policy(
 async def normalize_lookup_input(
     input_data: dict[str, Any], tool_use_id: str | None, context: Any
 ) -> dict[str, Any]:
-    """Trim and uppercase customer/order ids before they hit the backend."""
+    """Normalize customer and order ids before the backend receives them."""
 
     tool_input = input_data.get("tool_input", {})
     cleaned = dict(tool_input)
@@ -83,11 +86,11 @@ async def normalize_lookup_input(
 async def audit_tool_result(
     input_data: dict[str, Any], tool_use_id: str | None, context: Any
 ) -> dict[str, Any]:
-    """Log every support-tool call and nudge escalation on dead-end errors.
+    """Log support tool results and guide the model on non-retryable errors.
 
-    Structured errors travel back as a JSON string inside the tool result's
-    text block (see errors.tool_error_result), so they're parsed back out
-    here rather than being available as native fields.
+    Structured errors come back as JSON text in the tool result content block.
+    Parse that text here so the hook can read the error category and retry
+    flag.
     """
 
     tool_name = input_data.get("tool_name", "unknown")
@@ -102,15 +105,15 @@ async def audit_tool_result(
         error_category = parsed.get("errorCategory")
         is_retryable = parsed.get("isRetryable")
     except (KeyError, IndexError, TypeError, ValueError):
-        pass  # Not a structured error payload -- nothing to extract.
+        pass  # This was not a structured error payload, so there is nothing to extract.
 
     if error_category is not None:
         print(f"[AUDIT] {tool_name} args={tool_input} -> ERROR:{error_category}")
     else:
         print(f"[AUDIT] {tool_name} args={tool_input} -> ok")
 
-    # Non-retryable permission/business errors are dead ends: point the model
-    # at escalation instead of letting it retry or give up silently.
+    # Permission and business errors are not retryable, so the next step should
+    # be escalation instead of another attempt.
     if error_category in ("permission", "business") and is_retryable is False:
         return {
             "hookSpecificOutput": {
