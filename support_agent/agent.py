@@ -34,6 +34,7 @@ SYSTEM_PROMPT = (
 
 def build_options() -> ClaudeAgentOptions:
     return ClaudeAgentOptions(
+        model="claude-sonnet-4-6",
         mcp_servers={"support": support_server},
         allowed_tools=ALL_TOOL_NAMES,
         hooks=HOOKS,
